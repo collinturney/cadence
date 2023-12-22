@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="{{ url_for('static', path='plotly-latest.min.js') }}"></script>
+    <title>{{ host }}::{{ name }}</title>
+    <style>
+      a { text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <h2><a href="{{ request.url_for("ui_hosts") }}">{{ host }}::{{ name }}</a>
+    <div id="chart-container" style="width: 800px; height: 400px;"></div>
+    <script>
+        async function renderChart(data_url) {
+            try {
+                const response = await fetch(data_url);
+                const { data, layout } = await response.json();
+                const container = document.getElementById('chart-container');
+                Plotly.newPlot(container, data, layout);
+            }
+            catch (error) {
+                console.error('Error fetching chart data: ', error);
+            }
+        }
+
+        renderChart('{{ request.url_for("api_chart", host=host, name=name) }}');
+    </script>
+  </body>
+</html>

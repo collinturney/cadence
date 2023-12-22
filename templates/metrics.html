@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>metrics</title>
+    <style>
+      a { text-decoration: none; }
+    </style>
+  </head>
+  <body>
+  {% for host, names in metrics.items() %}
+  <h2>{{ host }}<h2>
+    {% for name in names %}
+      <li><a href="{{ request.url_for("ui_chart", host=host, name=name) }}">{{ name }}</a></li>
+    {% endfor %}
+  {% endfor %}
+  </body>
+</html>
