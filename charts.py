@@ -7,7 +7,7 @@ def ordered_pairs(metrics):
 
     for metric in metrics:
         values.append(float(metric.value))
-        timestamps.append(metric.ts)
+        timestamps.append(metric.time)
 
     return (values, timestamps)
 

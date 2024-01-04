@@ -8,17 +8,54 @@
     <style>
       a { text-decoration: none; }
     </style>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
   </head>
   <body>
-    <h2><a href="{{ request.url_for("ui_hosts") }}">{{ host }}::{{ name }}</a>
+    <div class="container">
+    <h2>
+      <a href="{{ request.url_for("ui_hosts") }}">{{ host }}::{{ name }}</a>
+      <small class="text-muted">{{ summary["current"] }}</small>
+    </h2>
     <div id="chart-container" style="width: 800px; height: 400px;"></div>
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th scope="col"></th>
+          <th scope="col">Min</th>
+          <th scope="col">Max</th>
+          <th scope="col">Avg</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">Hour</th>
+          <td>{{ summary["hour"]["min"] }}</td>
+          <td>{{ summary["day"]["min"] }}</td>
+          <td>{{ summary["week"]["min"] }}</td>
+        </tr>
+        <tr>
+          <th scope="row">Day</th>
+          <td>{{ summary["hour"]["max"] }}</td>
+          <td>{{ summary["day"]["max"] }}</td>
+          <td>{{ summary["week"]["max"] }}</td>
+        </tr>
+        <tr>
+          <th scope="row">Week</th>
+          <td>{{ summary["hour"]["avg"] }}</td>
+          <td>{{ summary["day"]["avg"] }}</td>
+          <td>{{ summary["week"]["avg"] }}</td>
+        </tr>
+      </tbody>
+    </table> 
     <script>
         async function renderChart(data_url) {
-            try {
+	        try {
                 const response = await fetch(data_url);
                 const { data, layout } = await response.json();
                 const container = document.getElementById('chart-container');
-                Plotly.newPlot(container, data, layout);
+		const config = { displayModeBar: false };
+                Plotly.newPlot(container, data, layout, config);
             }
             catch (error) {
                 console.error('Error fetching chart data: ', error);
@@ -27,5 +64,6 @@
 
         renderChart('{{ request.url_for("api_chart", host=host, name=name) }}');
     </script>
+    </div>
   </body>
 </html>

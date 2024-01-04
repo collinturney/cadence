@@ -47,9 +47,9 @@ class Cadence(object):
             self._add_metric(metric)
 
     def _add_metric(self, metric):
-        ts = datetime.fromtimestamp(metric.values.pop("_time", time.time()))
+        time_ = datetime.fromtimestamp(metric.values.pop("_time", time.time()))
         for name, value in metric.values.items():
-            metric = Metric(host=metric.host, name=name, value=value, ts=ts)
+            metric = Metric(host=metric.host, name=name, value=value, time=time_)
             self.db.add_metric(metric)
 
     def shutdown(self):
@@ -89,6 +89,12 @@ async def api_values(host: str, name: str):
     return {"values": db.metrics(host, name)}
 
 
+@app.get("/api/hosts/{host}/metrics/{name}/current")
+async def api_current_value(host: str, name:str):
+    metric = db.current(host, name)
+    return {"value": metric.value, "time": metric.time}
+
+
 @app.get("/api/hosts/{host}/metrics/{name}/chart")
 async def api_chart(host: str, name: str):
     metrics = db.metrics(host, name)
@@ -107,7 +113,8 @@ async def ui_hosts(request: Request):
 
 @app.get("/ui/hosts/{host}/metrics/{name}/chart", response_class=HTMLResponse)
 async def ui_chart(request: Request, host: str, name: str):
-    params = {"request": request, "host": host, "name": name}
+    summary = db.summary(host, name)
+    params = {"request": request, "host": host, "name": name, "summary": summary}
     return templates.TemplateResponse("chart.html", params)
 
 
