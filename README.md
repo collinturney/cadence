@@ -1,6 +1,6 @@
 # :hourglass_flowing_sand: cadence
 
-A metrics visualization web UI for [disco.py](https://github.com/collinturney/disco).
+A metrics visualization web UI for [disco.py](https://github.com/collinturney/disco.py).
 
 ![temp](images/temp.png)
 
