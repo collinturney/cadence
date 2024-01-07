@@ -36,12 +36,12 @@ class MetricsDatabase(object):
     def add_metric(self, metric):
         with self.lock.write_locked():
             self.session.add(metric)
-            self.session.commit()
+            self._commit()
 
     def add_metrics(self, metrics):
         with self.lock.write_locked():
             self.session.bulk_save_objects(metrics)
-            self.session.commit()
+            self._commit()
 
     def hosts(self):
         with self.lock.read_locked():
@@ -115,7 +115,7 @@ class MetricsDatabase(object):
             metadata.reflect(bind=self.db)
             for table in reversed(metadata.sorted_tables):
                 self.session.execute(table.delete())
-            self.session.commit()
+            self._commit()
 
     def _downsample(self, metrics, target: int = 150):
         factor = math.ceil(max(len(metrics) / target, 1))
@@ -143,6 +143,13 @@ class MetricsDatabase(object):
                           Metric.time.between(start, end))
                   .one())
         return dict(result._mapping)
+
+    def _commit(self):
+        try:
+            self.session.commit()
+        except:
+            self.session.rollback()
+            raise
 
     @staticmethod
     def _copy_db(source, dest):

@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from lock import RWLock
+import logging
 import os
 import signal
 import sys
@@ -23,6 +24,7 @@ class Cadence(object):
     SAVE_FILE = "cadence.sqlite"
 
     def __init__(self, db):
+        self.log = logging.getLogger(__name__)
         self.db = db
         self.load()
         self.running = True
@@ -32,27 +34,39 @@ class Cadence(object):
 
     def load(self, db_file=SAVE_FILE):
         if os.path.exists(db_file):
+            self.log.info(f"Loading dataset '{db_file}'")
             self.db.load(db_file)
 
     def save(self, db_file=SAVE_FILE):
+        self.log.info(f"Saving dataset '{db_file}'")
         self.db.save(db_file)
 
     def db_update(self):
         while self.running:
-            metric = self.receiver.get_metric()
+            metric = self._get_metric()
 
             if metric is None:
                 continue
 
             self._add_metric(metric)
 
+    def _get_metric(self):
+        try:
+            return self.receiver.get_metric()
+        except Exception:
+            self.log.error("Error receiving metric", exc_info=True)
+
     def _add_metric(self, metric):
-        time_ = datetime.fromtimestamp(metric.values.pop("_time", time.time()))
-        for name, value in metric.values.items():
-            metric = Metric(host=metric.host, name=name, value=value, time=time_)
-            self.db.add_metric(metric)
+        try:
+            time_ = datetime.fromtimestamp(metric.values.pop("_time", time.time()))
+            for name, value in metric.values.items():
+                metric = Metric(host=metric.host, name=name, value=value, time=time_)
+                self.db.add_metric(metric)
+        except Exception:
+            self.log.error("Error receiving metric", exc_info=True)
 
     def shutdown(self):
+        self.log.info("Shutting down")
         self.running = False
         self.db_updater.join()
         self.receiver.shutdown()
