@@ -34,17 +34,17 @@ class MetricsDatabase(object):
         self.lock = RWLock()
 
     def add_metric(self, metric):
-        with self.lock.write_locked():
+        with self.lock.write_lock():
             self.session.add(metric)
             self._commit()
 
     def add_metrics(self, metrics):
-        with self.lock.write_locked():
+        with self.lock.write_lock():
             self.session.bulk_save_objects(metrics)
             self._commit()
 
     def hosts(self):
-        with self.lock.read_locked():
+        with self.lock.read_lock():
             rows = (self.session.query(Metric.host)
                     .distinct()
                     .order_by(Metric.host.asc())
@@ -52,7 +52,7 @@ class MetricsDatabase(object):
         return [row[0] for row in rows]
 
     def names(self, host):
-        with self.lock.read_locked():
+        with self.lock.read_lock():
             rows = (self.session.query(Metric.name)
                     .filter(Metric.host == host)
                     .distinct()
@@ -63,7 +63,7 @@ class MetricsDatabase(object):
     def metrics(self, host, name, **kwargs):
         days = int(kwargs.get("days", 7))
         start = datetime.now() - timedelta(days=days)
-        with self.lock.read_locked():
+        with self.lock.read_lock():
             metrics = (self.session.query(Metric)
                        .filter(Metric.host == host,
                                Metric.name == name,
@@ -72,8 +72,17 @@ class MetricsDatabase(object):
                        .all())
         return self._downsample(metrics)
 
+    def prune(self, days_to_keep=7):
+        threshold_date = datetime.now() - timedelta(days=days_to_keep)
+        with self.lock.write_lock():
+            (self.session.query(Metric)
+                .filter(Metric.time < threshold_date)
+                .delete())
+            self.db.raw_connection().execute("VACUUM")
+            self._commit()
+
     def current(self, host, name):
-        with self.lock.read_locked():
+        with self.lock.read_lock():
             row = (self.session.query(Metric.value)
                    .filter(Metric.host == host,
                            Metric.name == name)
@@ -91,26 +100,26 @@ class MetricsDatabase(object):
         summary = {}
         summary["current"] = self.current(host, name)
 
-        with self.lock.read_locked():
+        with self.lock.read_lock():
             summary["hour"] = self._interval_stats(host, name, one_hour_ago, now)
             summary["day"] = self._interval_stats(host, name, one_day_ago, now)
             summary["week"] = self._interval_stats(host, name, one_week_ago, now)
         return summary
 
     def save(self, path):
-        with self.lock.write_locked():
+        with self.lock.write_lock():
             out_db = create_engine(f"sqlite:///{path}")
             self._copy_db(self.db, out_db)
             out_db.dispose()
 
     def load(self, path):
-        with self.lock.write_locked():
+        with self.lock.write_lock():
             in_db = create_engine(f"sqlite:///{path}")
             self._copy_db(in_db, self.db)
             in_db.dispose()
 
     def clear(self):
-        with self.lock.write_locked():
+        with self.lock.write_lock():
             metadata = MetaData()
             metadata.reflect(bind=self.db)
             for table in reversed(metadata.sorted_tables):

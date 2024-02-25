@@ -36,8 +36,12 @@ class Cadence(object):
         if os.path.exists(db_file):
             self.log.info(f"Loading dataset '{db_file}'")
             self.db.load(db_file)
+            self.log.info("Pruning dataset")
+            self.db.prune()
 
     def save(self, db_file=SAVE_FILE):
+        self.log.info("Pruning dataset")
+        self.db.prune()
         self.log.info(f"Saving dataset '{db_file}'")
         self.db.save(db_file)
 

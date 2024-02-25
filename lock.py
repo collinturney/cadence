@@ -26,7 +26,7 @@ class RWLock(object):
         self.read_count_lock.release()
 
     @contextmanager
-    def read_locked(self):
+    def read_lock(self):
         try:
             self.acquire_read()
             yield
@@ -40,7 +40,7 @@ class RWLock(object):
         self.lock.release()
 
     @contextmanager
-    def write_locked(self):
+    def write_lock(self):
         try:
             self.acquire_write()
             yield
