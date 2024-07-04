@@ -24,14 +24,10 @@ class Metric(ModelBase):
 
 
 class MetricsDatabase(object):
-    def __init__(self, path="sqlite://"):
-        connect_args = {"check_same_thread": False}
-        self.db = create_engine(path, connect_args=connect_args, poolclass=StaticPool)
-
-        ModelBase.metadata.create_all(self.db)
-        Session = sessionmaker(bind=self.db)
-        self.session = Session()
+    def __init__(self, path="metrics.db"):
+        self.path = f"sqlite:///{path}"
         self.lock = RWLock()
+        self._connect()
 
     def add_metric(self, metric):
         with self.lock.write_lock():
@@ -43,7 +39,7 @@ class MetricsDatabase(object):
             self.session.bulk_save_objects(metrics)
             self._commit()
 
-    def hosts(self):
+    def host_names(self):
         with self.lock.read_lock():
             rows = (self.session.query(Metric.host)
                     .distinct()
@@ -51,7 +47,7 @@ class MetricsDatabase(object):
                     .all())
         return [row[0] for row in rows]
 
-    def names(self, host):
+    def metric_names(self, host):
         with self.lock.read_lock():
             rows = (self.session.query(Metric.name)
                     .filter(Metric.host == host)
@@ -78,8 +74,9 @@ class MetricsDatabase(object):
             (self.session.query(Metric)
                 .filter(Metric.time < threshold_date)
                 .delete())
-            self.db.raw_connection().execute("VACUUM")
-            self._commit()
+
+            self._commit() # be sure to commit before vacuum
+            self.engine.raw_connection().execute("VACUUM")
 
     def current(self, host, name):
         with self.lock.read_lock():
@@ -106,34 +103,21 @@ class MetricsDatabase(object):
             summary["week"] = self._interval_stats(host, name, one_week_ago, now)
         return summary
 
-    def save(self, path):
-        with self.lock.write_lock():
-            out_db = create_engine(f"sqlite:///{path}")
-            self._copy_db(self.db, out_db)
-            out_db.dispose()
-
-    def load(self, path):
-        with self.lock.write_lock():
-            in_db = create_engine(f"sqlite:///{path}")
-            self._copy_db(in_db, self.db)
-            in_db.dispose()
-
-    def clear(self):
-        with self.lock.write_lock():
-            metadata = MetaData()
-            metadata.reflect(bind=self.db)
-            for table in reversed(metadata.sorted_tables):
-                self.session.execute(table.delete())
-            self._commit()
+    def _connect(self):
+        args = {"check_same_thread": False}
+        self.engine = create_engine(self.path, connect_args=args, poolclass=StaticPool)
+        ModelBase.metadata.create_all(self.engine)
+        Session = sessionmaker(bind=self.engine)
+        self.session = Session()
 
     def _downsample(self, metrics, target: int = 150):
         factor = math.ceil(max(len(metrics) / target, 1))
 
-        if factor == 1:
+        if factor <= 1:
             return metrics
 
         samples = []
-        for chunk in self._chunks(metrics, factor):
+        for chunk in self._chunkify(metrics, factor):
             avg_value = sum([float(item.value) for item in chunk]) / len(chunk)
             avg_time = sum([item.time.timestamp() for item in chunk]) / len(chunk)
             samples.append(Metric(host=chunk[0].host,
@@ -160,13 +144,10 @@ class MetricsDatabase(object):
             self.session.rollback()
             raise
 
-    @staticmethod
-    def _copy_db(source, dest):
-        source_conn = source.raw_connection()
-        dest_conn = dest.raw_connection()
-        source_conn.backup(dest_conn.driver_connection)
+    def __len__(self):
+        return self.session.query(Metric).count()
 
     @staticmethod
-    def _chunks(items, n):
+    def _chunkify(items, n):
         for i in range(0, len(items), n):
             yield items[i:i + n]

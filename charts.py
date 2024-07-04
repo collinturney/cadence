@@ -1,45 +1,41 @@
 #!/usr/bin/env python3
 
 
-def ordered_pairs(metrics):
-    values = []
-    timestamps = []
-
-    for metric in metrics:
-        values.append(float(metric.value))
-        timestamps.append(metric.time)
-
-    return (values, timestamps)
-
-
 class LineChart(object):
     @staticmethod
-    def render(host, metric, values, timestamps):
-        data = {
-            "type": "scatter",
-            "mode": "lines",
-            "x": timestamps,
-            "y": values,
-            "name": metric,
-            "line": {
-                "color": "blue"
-            }
-        }
+    def get_coordinates(metrics):
+        x = []
+        y = []
 
-        layout = {
-            "title": f"{host} - {metric}",
-            "xaxis": {
-                "type": "time",
-                "title": "time"
-            },
-            "yaxis": {
-                "title": metric
-            }
-        }
+        for metric in metrics:
+            x.append(metric.time)
+            y.append(float(metric.value))
 
-        chart = {
-            "data": [data],
-            "layout": [layout]
-        }
+        return (x, y)
 
-        return chart
+    @staticmethod
+    def render(host_name, metric_name, metrics):
+        x, y = LineChart.get_coordinates(metrics)
+
+        return {
+            "data": [{
+                "type": "scatter",
+                "mode": "lines",
+                "x": x,
+                "y": y,
+                "name": metric_name,
+                "line": {
+                    "color": "blue"
+                }
+            }],
+            "layout": [{
+                "title": f"{host_name} - {metric_name}",
+                "xaxis": {
+                    "type": "time",
+                    "title": "time"
+                },
+                "yaxis": {
+                    "title": metric_name
+                }
+            }]
+        }

@@ -8,13 +8,13 @@
     <style>
       a { text-decoration: none; }
     </style>
-    <title>{{ host }}::{{ name }}</title>
+    <title>{{ host }}::{{ metric }}</title>
   </head>
   <body>
     <div class="container" style="width: 800px; height: 400px;">
       <h2>
-        <a href="{{ request.url_for("ui_hosts") }}">{{ host }}::{{ name }}</a>
-	    <span class="label label-success">current: {{ summary["current"] }}</span>
+        <a href="{{ request.url_for("ui_hosts") }}">{{ host }}::{{ metric }}</a>
+	    <span class="label label-success pull-right">current: {{ summary["current"] }}</span>
       </h2>
       <div id="chart-container"></div>
       <table class="table table-sm">
@@ -62,7 +62,7 @@
         }
       }
 
-      renderChart('{{ request.url_for("api_chart", host=host, name=name) }}');
+      renderChart('{{ request.url_for("api_chart", host_name=host, metric_name=metric) }}');
     </script>
   </body>
 </html>
